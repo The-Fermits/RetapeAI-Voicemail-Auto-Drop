@@ -25,7 +25,6 @@ To solve the "When do I drop?" problem, the engine evaluates audio in three stag
 ---
 
 ## 📁 File Structure
-Read More: https://docs.google.com/document/d/1FHirsscMqvxIDXkXVAetnsuXs1owc9v8SqXyoC7dOxU/edit?usp=sharing
 ```text
 voicemail-auto-drop/
 ├── run_detector.py          # Main entry point script
@@ -35,3 +34,6 @@ voicemail-auto-drop/
 ├── scripts/                 # Utility scripts (TTS generation)
 ├── tests/                   # API verification scripts
 └── assets/                  # Audio greetings & output payloads
+
+
+Read More: https://docs.google.com/document/d/1FHirsscMqvxIDXkXVAetnsuXs1owc9v8SqXyoC7dOxU/edit?usp=sharing
