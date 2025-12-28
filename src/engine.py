@@ -104,29 +104,52 @@ class VoicemailEngine:
 
             async def monitor():
                 keywords = ["message", "tone", "beep", "record", "after the"]
+                
                 while not self.is_voicemail_dropped:
                     await asyncio.sleep(0.5)
+                    
+                    # Calculate current silence duration
                     silence = time.time() - self.last_speech_time
                     combined_text = " ".join(self.full_transcript_list).lower()
 
-                    # 1. Tier 1: Gemini (Triggered at 0.8s silence as per your code)
+                    # ---------------------------------------------------------
+                    # TIER 1: Gemini AI Logic (with Interruption Check)
+                    # ---------------------------------------------------------
                     if self.full_transcript_list and not self.processing_gemini and silence >= 0.8:
+                        # 1. Capture the state of silence BEFORE the API call
+                        pre_gemini_speech_time = self.last_speech_time
+                        
                         self.processing_gemini = True
                         loop = asyncio.get_running_loop()
-                        verdict = await loop.run_in_executor(self.executor, self.ask_gemini, combined_text)
-                        self.processing_gemini = False
                         
+                        # 2. Call Gemini in the background
+                        verdict = await loop.run_in_executor(self.executor, self.ask_gemini, combined_text)
+                        
+                        self.processing_gemini = False
+
+                        # 3. THE INTERRUPTION CHECK:
+                        # If self.last_speech_time changed while we were waiting for Gemini,
+                        # it means the receiver() heard new speech.
+                        if self.last_speech_time > pre_gemini_speech_time:
+                            ts_log("🛑 User interrupted Gemini! Aborting drop to continue listening.")
+                            continue 
+
+                        # 4. If silence was maintained, act on the verdict
                         if "Yes" in verdict:
                             await self.drop_voicemail()
                             break
-                    
-                    # 2. Safety fallbacks
+
+                    # ---------------------------------------------------------
+                    # TIER 2 & 3: Safety Fallbacks
+                    # ---------------------------------------------------------
                     if not self.processing_gemini:
+                        # Keyword + 3s Silence
                         if any(k in combined_text for k in keywords) and silence >= 3.0:
                             ts_log("🎯 Safety Trigger: Keywords + 3s Silence")
                             await self.drop_voicemail()
                             break
 
+                        # 6s Hard Silence (Ultimate safety net)
                         if silence >= 6.0:
                             ts_log("⚠️ Safety Trigger: 6s Hard Silence")
                             await self.drop_voicemail()
